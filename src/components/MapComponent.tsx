@@ -4,7 +4,7 @@ import { Card } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { MapPin, Shapes, Move, Plus, ZoomIn, ZoomOut } from 'lucide-react';
+import { MapPin, Shapes, Move, Plus, ZoomIn, ZoomOut, Navigation } from 'lucide-react';
 
 interface DataPoint {
   id: string;
@@ -36,6 +36,10 @@ export function MapComponent({ dataPoints, polygons, onAddPolygon, onAddPoint }:
   const [zoom, setZoom] = useState(2);
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  
+  // Geolocation state
+  const [isGeolocating, setIsGeolocating] = useState(false);
+  const [geolocationError, setGeolocationError] = useState<string | null>(null);
   
   // Modal state for adding points
   const [showPointModal, setShowPointModal] = useState(false);
@@ -245,6 +249,56 @@ export function MapComponent({ dataPoints, polygons, onAddPolygon, onAddPoint }:
     setIsAddingPoint(false);
   };
 
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setGeolocationError('La geolocalización no está disponible en este navegador');
+      return;
+    }
+
+    setIsGeolocating(true);
+    setGeolocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        // Convert lat/lng to pixel coordinates for the map center
+        const tileZ = Math.max(1, Math.min(18, Math.round(zoom + 10)));
+        const tile = latLngToTile(latitude, longitude, tileZ);
+        const scale = Math.pow(2, tileZ);
+        
+        const pixelX = (tile.x - scale / 2) * TILE_SIZE;
+        const pixelY = (tile.y - scale / 2) * TILE_SIZE;
+        
+        setMapCenter({ x: pixelX, y: pixelY });
+        setZoom(5); // Set a reasonable zoom level for user location
+        setIsGeolocating(false);
+      },
+      (error) => {
+        setIsGeolocating(false);
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setGeolocationError('Permiso de ubicación denegado');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setGeolocationError('Ubicación no disponible');
+            break;
+          case error.TIMEOUT:
+            setGeolocationError('Tiempo de espera agotado');
+            break;
+          default:
+            setGeolocationError('Error desconocido al obtener la ubicación');
+            break;
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
+      }
+    );
+  };
+
   const zoomIn = () => {
     setZoom(prev => Math.min(prev * 1.5, 20));
   };
@@ -290,6 +344,17 @@ export function MapComponent({ dataPoints, polygons, onAddPolygon, onAddPoint }:
               <ZoomOut className="w-4 h-4" />
             </Button>
           </div>
+          
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={getCurrentLocation}
+            disabled={isGeolocating}
+            title="Ir a mi ubicación"
+          >
+            <Navigation className={`w-4 h-4 mr-2 ${isGeolocating ? 'animate-pulse' : ''}`} />
+            {isGeolocating ? 'Ubicando...' : 'Mi Ubicación'}
+          </Button>
         </div>
       </Card>
 
@@ -307,6 +372,23 @@ export function MapComponent({ dataPoints, polygons, onAddPolygon, onAddPoint }:
           </div>
         </div>
       </Card>
+
+      {/* Geolocation Error Message */}
+      {geolocationError && (
+        <Card className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 p-3 bg-destructive text-destructive-foreground">
+          <div className="flex items-center gap-2">
+            <p className="text-sm">{geolocationError}</p>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={() => setGeolocationError(null)}
+              className="h-auto p-1 text-destructive-foreground hover:bg-destructive-foreground/10"
+            >
+              ×
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Map Canvas */}
       <div className="relative w-full h-full">
