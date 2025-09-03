@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import * as React from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -33,6 +34,27 @@ export function MapComponent({ dataPoints, polygons, onAddPolygon, onAddPoint }:
   const [isAddingPoint, setIsAddingPoint] = useState(false);
   const [currentPolygonPoints, setCurrentPolygonPoints] = useState<[number, number][]>([]);
   const [mapCenter, setMapCenter] = useState({ x: 0, y: 0 });
+  // Centrar el mapa según la ubicación del navegador
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          // Convertir lat/lng a coordenadas de mapa
+          const tileZ = Math.max(1, Math.min(18, Math.round(zoom + 10)));
+          const tile = latLngToTile(latitude, longitude, tileZ);
+          const scale = Math.pow(2, tileZ);
+          const pixelX = (tile.x - scale / 2) * TILE_SIZE;
+          const pixelY = (tile.y - scale / 2) * TILE_SIZE;
+          setMapCenter({ x: pixelX, y: pixelY });
+        },
+        (error) => {
+          // Si falla, no hacer nada
+        }
+      );
+    }
+    // Solo al montar y si cambia zoom
+  }, [zoom, latLngToTile]);
   const [zoom, setZoom] = useState(2);
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
@@ -49,6 +71,27 @@ export function MapComponent({ dataPoints, polygons, onAddPolygon, onAddPoint }:
   // ArcGIS World Imagery tile service
   const TILE_SIZE = 256;
   const ARCGIS_TILE_URL = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+  // Centrar el mapa según la ubicación del navegador
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          // Convertir lat/lng a coordenadas de mapa
+          const tileZ = Math.max(1, Math.min(18, Math.round(zoom + 10)));
+          const tile = latLngToTile(latitude, longitude, tileZ);
+          const scale = Math.pow(2, tileZ);
+          const pixelX = (tile.x - scale / 2) * TILE_SIZE;
+          const pixelY = (tile.y - scale / 2) * TILE_SIZE;
+          setMapCenter({ x: pixelX, y: pixelY });
+        },
+        (error) => {
+          // Si falla, no hacer nada
+        }
+      );
+    }
+    // Solo al montar y si cambia zoom
+  }, [zoom, latLngToTile]);
 
   // Convert lat/lng to tile coordinates
   const latLngToTile = useCallback((lat: number, lng: number, z: number) => {
@@ -58,6 +101,28 @@ export function MapComponent({ dataPoints, polygons, onAddPolygon, onAddPoint }:
     const y = Math.floor((1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2 * n);
     return { x, y, z };
   }, []);
+
+  // Centrar el mapa según la ubicación del navegador
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          // Convertir lat/lng a coordenadas de mapa
+          const tileZ = Math.max(1, Math.min(18, Math.round(zoom + 10)));
+          const tile = latLngToTile(latitude, longitude, tileZ);
+          const scale = Math.pow(2, tileZ);
+          const pixelX = (tile.x - scale / 2) * TILE_SIZE;
+          const pixelY = (tile.y - scale / 2) * TILE_SIZE;
+          setMapCenter({ x: pixelX, y: pixelY });
+        },
+        (error) => {
+          // Si falla, no hacer nada
+        }
+      );
+    }
+    // Solo al montar y si cambia zoom
+  }, [zoom, latLngToTile]);
 
   // Convert tile coordinates to lat/lng
   const tileToLatLng = useCallback((x: number, y: number, z: number) => {
